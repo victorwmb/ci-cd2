@@ -85,18 +85,18 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: "team_997mfpiTRTMgDrUCii91h5Lw"
+          VERCEL_PROJECT_ID: "prj_F9oBu8Rcg5BPlYcc2X9IfgT5B2SA"
       - name: Build Project Artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: "team_997mfpiTRTMgDrUCii91h5Lw"
+          VERCEL_PROJECT_ID: "prj_F9oBu8Rcg5BPlYcc2X9IfgT5B2SA"
       - name: Deploy Project Artifacts to Vercel
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: "team_997mfpiTRTMgDrUCii91h5Lw"
+          VERCEL_PROJECT_ID: "prj_F9oBu8Rcg5BPlYcc2X9IfgT5B2SA"
 
   deploy_front:
     needs: [unit_integration_tests, infrastructure_and_e2e_tests]
