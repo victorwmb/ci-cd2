@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/ci-cd/',
+  base: '/ci-cd2/',
   plugins: [
     react(),
     babel({ presets: [reactCompilerPreset()] })
