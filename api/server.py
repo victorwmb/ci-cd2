@@ -15,6 +15,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "L'API Python est bien en ligne !"}
+
 def get_db_connection():
     return mysql.connector.connect(
         database=os.getenv("MYSQL_DATABASE"),
