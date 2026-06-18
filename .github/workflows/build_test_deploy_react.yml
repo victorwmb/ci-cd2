@@ -48,12 +48,18 @@ jobs:
         run: |
           sleep 10
 
-          for i in {1..6}; do
-            if [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-react-1 2>/dev/null)" == "healthy" ] && \
-               [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-api-1 2>/dev/null)" == "healthy" ] && \
-               [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-db-1 2>/dev/null)" == "healthy" ]; then
-              echo "All services are healthy!"
-              break
+          for i in {1..12}; do
+            REACT_ID=$(docker compose ps -q react)
+            API_ID=$(docker compose ps -q api)
+            DB_ID=$(docker compose ps -q db)
+            
+            if [ -n "$REACT_ID" ] && [ -n "$API_ID" ] && [ -n "$DB_ID" ]; then
+              if [ "$(docker inspect -f '{{.State.Health.Status}}' $REACT_ID 2>/dev/null)" == "healthy" ] && \
+                 [ "$(docker inspect -f '{{.State.Health.Status}}' $API_ID 2>/dev/null)" == "healthy" ] && \
+                 [ "$(docker inspect -f '{{.State.Health.Status}}' $DB_ID 2>/dev/null)" == "healthy" ]; then
+                echo "All services are healthy!"
+                break
+              fi
             fi
             echo "Waiting for services to become healthy..."
             sleep 10
