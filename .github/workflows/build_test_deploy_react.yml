@@ -31,7 +31,7 @@ jobs:
       - name: Install Python dependencies and test API
         run: |
           pip install -r api/requirements.txt
-          pytest api/test_server.py
+          pytest --cov=api --cov-report=xml api/test_server.py
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
