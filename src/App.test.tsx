@@ -13,7 +13,7 @@ const sonnerMocks = vi.hoisted(() => ({
 vi.mock("sonner", () => sonnerMocks)
 
 beforeEach(() => {
-  localStorage.clear()
+  vi.clearAllMocks()
 })
 
 describe('App', () => {

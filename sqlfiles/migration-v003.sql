@@ -1,2 +1,2 @@
 USE ynov_ci;
-INSERT INTO utilisateurs (nom, email) VALUES ('Victor', 'victor@example.com');
+INSERT IGNORE INTO utilisateurs (nom, prenom, email) VALUES ('Victor', 'Test', 'victor@example.com');

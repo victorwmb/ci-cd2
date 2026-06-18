@@ -13,6 +13,7 @@ export default defineConfig({
         'dist/**',
         'docs/**',
         'public/docs/**',
+        'cypress/**',
         '*.config.*',
         '*.cjs',
       ],

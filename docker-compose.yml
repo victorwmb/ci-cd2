@@ -5,8 +5,12 @@ services:
       dockerfile: db/Dockerfile
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ynov_ci
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-loise.fenoll@ynov.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-PvdrTAzTeR247sDnAZBr}
+    volumes:
+      - ./sqlfiles:/docker-entrypoint-initdb.d
     healthcheck:
       test: "mysql --user=root --password=$${MYSQL_ROOT_PASSWORD} --execute \"SHOW DATABASES;\" || exit 1"
       interval: 10s
@@ -30,10 +34,34 @@ services:
     ports:
       - "8000:8000"
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ynov_ci
       MYSQL_USER: root
       MYSQL_HOST: db
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/users || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  react:
+    build:
+      context: .
+      dockerfile: Dockerfile.react
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

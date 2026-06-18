@@ -1,17 +1,14 @@
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { cn } from "../lib/utils"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
-import { Calendar } from "./ui/calendar"
+
 import { validateForm, type FormData } from "../utils/validation"
-import { saveUser } from "../services/storageService"
+import { saveUser } from "../services/api"
 
 const INITIAL_FORM: FormData = {
   lastName: "",
@@ -25,6 +22,7 @@ const INITIAL_FORM: FormData = {
 export default function RegistrationForm() {
   const [form, setForm] = useState<FormData>(INITIAL_FORM)
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const errors = useMemo(() => validateForm(form), [form])
   const isValid = Object.keys(errors).length === 0
@@ -38,22 +36,29 @@ export default function RegistrationForm() {
     return format(form.birthDate, "PPP", { locale: fr })
   }, [form.birthDate])
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitted(true)
     if (!isValid) return
 
-    saveUser({
-      lastName: form.lastName.trim(),
-      firstName: form.firstName.trim(),
-      email: form.email.trim(),
-      birthDate: form.birthDate!.toISOString(),
-      city: form.city.trim(),
-      postalCode: form.postalCode.trim(),
-    })
-    toast.success("Sauvegardé.")
-    setSubmitted(false)
-    setForm(INITIAL_FORM)
+    setLoading(true)
+    try {
+      await saveUser({
+        lastName: form.lastName.trim(),
+        firstName: form.firstName.trim(),
+        email: form.email.trim(),
+        birthDate: form.birthDate!.toISOString().split('T')[0],
+        city: form.city.trim(),
+        postalCode: form.postalCode.trim(),
+      })
+      toast.success("Sauvegardé avec succès.")
+      setSubmitted(false)
+      setForm(INITIAL_FORM)
+    } catch (err: any) {
+      toast.error("Erreur lors de la sauvegarde: " + (err.response?.data?.detail || err.message))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -118,33 +123,17 @@ export default function RegistrationForm() {
         </div>
 
         <div className="space-y-2">
-          <Label>Date de naissance</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !form.birthDate && "text-slate-500"
-                )}
-                aria-invalid={showError("birthDate")}
-              >
-                <CalendarIcon />
-                {birthDateLabel}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="bg-white p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={form.birthDate}
-                onSelect={(birthDate) => {
-                  setForm((s) => ({ ...s, birthDate: birthDate ?? undefined }))
-                }}
-                captionLayout="dropdown"
-              />
-            </PopoverContent>
-          </Popover>
+          <Label htmlFor="birthDate">Date de naissance</Label>
+          <Input
+            id="birthDate"
+            type="date"
+            value={form.birthDate ? form.birthDate.toISOString().split('T')[0] : ''}
+            onChange={(ev) => {
+              const val = ev.target.value
+              setForm((s) => ({ ...s, birthDate: val ? new Date(val + 'T12:00:00') : undefined }))
+            }}
+            aria-invalid={showError("birthDate")}
+          />
           {showError("birthDate") ? (
             <p className="text-sm text-red-600">{errors.birthDate}</p>
           ) : null}

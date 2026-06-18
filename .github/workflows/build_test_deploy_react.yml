@@ -1,8 +1,6 @@
-name: Build, Test and Deploy React Application
+name: CI/CD Pipeline
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [main]
   pull_request:
@@ -13,56 +11,112 @@ permissions:
   pages: write
   id-token: write
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build_test:
-    # The type of runner that the job will run on
+  unit_integration_tests:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [24.x]
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: npm ci, build and test
+          node-version: 20.x
+      - name: Install dependencies and test React
         run: |
           npm ci
-          npm run jsdoc
-          npm run build --if-present
           npm test
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-      - name: authenticate with npm
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-      - name: Check package versions
-        id: check-version
+          python-version: '3.9'
+      - name: Install Python dependencies and test API
         run: |
-          PACKAGE_NAME=$(node -p "require('./package.json').name")
-          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          pip install -r api/requirements.txt
+          pytest api/test_server.py
 
-          REMOTE_VERSION=$(npm view $PACKAGE_NAME version 2>/dev/null || echo "0.0.0")
-
-          echo "local_version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
-          echo "remote_version=$REMOTE_VERSION" >> $GITHUB_OUTPUT
-
-          echo "Version locale : $LOCAL_VERSION"
-          echo "Version distante (NPM) : $REMOTE_VERSION"
-      - name: build and publish package on NPM
-        if: steps.check-version.outputs.local_version != steps.check-version.outputs.remote_version
+  infrastructure_and_e2e_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start Docker Architecture
         run: |
-          npm run build-npm-ci
-          npm publish
+
+          export MYSQL_ROOT_PASSWORD=root
+          export ADMIN_EMAIL=loise.fenoll@ynov.com
+          export ADMIN_PASSWORD=PvdrTAzTeR247sDnAZBr
+          docker compose up -d
+      - name: Wait for services to be healthy
+        run: |
+          sleep 10
+
+          for i in {1..6}; do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-react-1 2>/dev/null)" == "healthy" ] && \
+               [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-api-1 2>/dev/null)" == "healthy" ] && \
+               [ "$(docker inspect -f '{{.State.Health.Status}}' ci-cd2-db-1 2>/dev/null)" == "healthy" ]; then
+              echo "All services are healthy!"
+              break
+            fi
+            echo "Waiting for services to become healthy..."
+            sleep 10
+          done
+          docker compose ps
+      - name: Setup Node.js for Cypress
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - name: Install NPM dependencies
+        run: npm ci
+      - name: Run Infrastructure Tests
+        run: npx cypress run --spec "cypress/e2e/docker-infra.cy.ts"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CYPRESS_BASE_URL: http://localhost:5173
+      - name: Run Cypress E2E Tests
+        run: npx cypress run --spec "cypress/e2e/app.cy.ts"
+        env:
+          CYPRESS_BASE_URL: http://localhost:5173
+
+  deploy_back:
+    needs: [unit_integration_tests, infrastructure_and_e2e_tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy_front:
+    needs: [unit_integration_tests, infrastructure_and_e2e_tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+      - name: Install dependencies
+        run: npm ci
+      - name: Build React App
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.PROD_API_URL }}
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
@@ -70,21 +124,6 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
-
-  # Deploy job
-  deploy:
-    # Deploy to the github-pages environment
-    environment:
-      name: github-pages
-      url: ${{steps.pages.outputs.page_url}}
-    runs-on: ubuntu-latest
-    # Grant GITHUB_TOKEN the permissions required to make a page deployment
-    permissions:
-      pages: write
-      id-token: write
-    # Add a dependency to the build job
-    needs: build_test
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
