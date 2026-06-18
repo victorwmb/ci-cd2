@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react"
 import { format } from "date-fns"
-import { fr } from "date-fns/locale"
 import { toast } from "sonner"
 
 import { Button } from "./ui/button"
@@ -22,7 +21,6 @@ const INITIAL_FORM: FormData = {
 export default function RegistrationForm() {
   const [form, setForm] = useState<FormData>(INITIAL_FORM)
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   const errors = useMemo(() => validateForm(form), [form])
   const isValid = Object.keys(errors).length === 0
@@ -31,33 +29,25 @@ export default function RegistrationForm() {
     return submitted && Boolean(errors[field])
   }
 
-  const birthDateLabel = useMemo(() => {
-    if (!form.birthDate) return "Choisir une date"
-    return format(form.birthDate, "PPP", { locale: fr })
-  }, [form.birthDate])
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitted(true)
     if (!isValid) return
 
-    setLoading(true)
     try {
       await saveUser({
         lastName: form.lastName.trim(),
         firstName: form.firstName.trim(),
         email: form.email.trim(),
-        birthDate: form.birthDate!.toISOString().split('T')[0],
+        birthDate: form.birthDate ? format(form.birthDate, "yyyy-MM-dd") : undefined,
         city: form.city.trim(),
         postalCode: form.postalCode.trim(),
       })
       toast.success("Sauvegardé avec succès.")
-      setSubmitted(false)
       setForm(INITIAL_FORM)
+      setSubmitted(false)
     } catch (err: any) {
-      toast.error("Erreur lors de la sauvegarde: " + (err.response?.data?.detail || err.message))
-    } finally {
-      setLoading(false)
+      toast.error(err.message || "Erreur lors de la sauvegarde")
     }
   }
 

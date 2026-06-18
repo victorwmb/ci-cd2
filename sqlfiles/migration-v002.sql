@@ -1,4 +1,4 @@
-USE ynov_ci;
+USE victorwmb_cicd;
 
 CREATE TABLE IF NOT EXISTS utilisateurs (
     id INT AUTO_INCREMENT PRIMARY KEY,

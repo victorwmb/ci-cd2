@@ -12,6 +12,13 @@ const sonnerMocks = vi.hoisted(() => ({
 
 vi.mock("sonner", () => sonnerMocks)
 
+vi.mock("./services/api", () => ({
+  getUsers: vi.fn().mockResolvedValue([]),
+  saveUser: vi.fn(),
+  deleteUser: vi.fn(),
+  loginAdmin: vi.fn(),
+}))
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
