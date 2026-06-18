@@ -58,13 +58,9 @@ function fillValidFields() {
 }
 
 function selectBirthDate() {
-  fireEvent.click(
-    screen.getAllByRole("button", { name: /choisir une date/i })[0]
-  )
-  const dayButton = screen
-    .getAllByRole("button")
-    .find((b) => /^\d{1,2}$/.test(b.textContent ?? ""))
-  if (dayButton) fireEvent.click(dayButton)
+  fireEvent.change(screen.getByLabelText(/date de naissance/i), {
+    target: { value: "2000-01-15" },
+  })
 }
 
 describe("RegistrationForm", () => {
